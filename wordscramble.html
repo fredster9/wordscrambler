@@ -1,0 +1,256 @@
+{% extends "base.html" %} 
+
+{% block title %}WordScrambler | Free Word Game{% endblock %} 
+
+{% block description %}WordScrambler is a free word game. Find all the word combinations in a set of six letters. Play anywhere.{% endblock %} 
+
+{% block content %}
+
+<div class="container">
+
+    <h1>WordScrambler</h1>
+    <p>This has nothing to do with AnimalEmails but it's easier than setting up a new server</p>
+
+    <div class="panel-group">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h5 class="panel-title">
+        <a data-toggle="collapse" href="#collapse1">Click here for rules</a>
+      </h5>
+            </div>
+            <div id="collapse1" class="panel-collapse collapse">
+                <div class="panel-body">
+                    <ul>
+                        <li>Make all the words you can in the time you have.</li>
+                        <li>Words have to be at least 3 letters.</li>
+                        <li>You CAN reuse letters.</li>
+                        <li>We use the Scrabble dictionary. Sorry if a word's not in it.</li>
+                    </ul>
+                </div>
+                <div class="panel-footer">Now get to it</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+
+                <div class="btn-toolbar" role="toolbar" aria-label="Game buttons">
+                    <div class="btn-group mr-2" role="group" aria-label="New game">
+                        <button type="button" class="btn btn-info" id="new-game-button">New Game</button>
+                    </div>
+
+                    <br>
+                    <br>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="number-of-words">
+        <p>You've found <span class="guessed">0</span> out of <span class="possible"></span> words</p>
+    </div>
+
+    <div>
+        <em><p class="response" style="color:maroon">Response to guess</p></em>
+    </div>
+
+    <div>
+        <h3 style="height:16px;" class="word-guessed">ENTER A WORD</h3>
+    </div>
+
+    <br>
+
+    <div class="btn-toolbar" role="toolbar" aria-label="Your letters">
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+        <button type="button" class="btn btn-primary btn-lg">&nbsp;</button>
+    </div>
+
+    <br>
+
+    <div class="btn-toolbar" role="toolbar" aria-label="buttons">
+        <div class="btn-group" role="group" aria-label="Del button">
+            <button type="button" class="btn btn-danger btn-lg">Del</button>
+        </div>
+        <div class="btn-group" role="group" aria-label="Del button">
+            <button type="button" class="btn btn-success btn-lg">Enter</button>
+        </div>
+
+    </div>
+
+    <br>
+
+    <div>Words will appear here if and when you find them</div>
+
+    <div>
+        <ul class="word-list" style="columns: 3; -webkit-columns: 3; -moz-columns: 3; list-style-type: none; margin: 0; padding: 0;">
+        </ul>
+    </div>
+
+    <br>
+    <br>
+    <br>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script>
+    // Init golbal variables
+    var wordsGuessed = [];
+    var wordsFound = 0;
+    var inputResponse = "";
+    var scrambleString = [];
+    var wordGuess = "";
+
+    // Trigger new game on initial page load
+    newGame();
+
+    // new game on button click
+    $('#new-game-button').click(function(event) {
+        newGame();
+    });
+
+    function newGame() {
+        console.log("in newGame");
+        $.ajax({
+            url: "http://animalemails.com/wordscrambler/newgame",
+            context: document.body,
+            method: 'GET',
+            success: function(data) {
+                console.log("callNewGame response made, data = " + data);
+                var response = JSON.parse(data);
+
+                // Takes response and puts into vars
+                scrambleString = response.scramble_string;
+                console.log("scramble string " + scrambleString);
+
+                var numberOfAnswers = response.number_of_answers;
+                console.log("number of answers " + numberOfAnswers);
+
+                acceptableList = response.acceptable_list;
+                console.log("acceptable list " + acceptableList);
+
+                // Populates button text
+                $(".btn.btn-primary.btn-lg").each(function(i, v) {
+                    $(this).text(scrambleString[i]);
+                });
+
+                // Sets and resets vals
+                wordsGuessed = [];
+                wordsFound = 0;
+                $('li').not(':first').remove();
+                $('.response').text("");
+                $('.guessed').text(wordsFound);
+                $('.possible').text(numberOfAnswers);
+
+                // Add a list item for each possible word
+                console.log("list length " + acceptableList.length);
+                for (i = 0; i < acceptableList.length; i++) {
+                    new_li = $('<li style="border-bottom: 1px solid black; margin: 0; padding: 0;">&nbsp;</li>');
+                    new_li.appendTo('.word-list');
+                }
+
+                ga('send', 'event', 'button', 'click', 'ws-new game');
+
+            }
+        });
+    }
+
+    // Take in keyboard input
+    document.addEventListener("keydown", getKeyLetter, false);
+
+    function getKeyLetter(e) {
+        var keyCode = e.keyCode;
+
+        console.log("log keypress " + keyCode);
+
+        if (keyCode === 13) {
+            submitWord();
+        } else if (keyCode === 8) {
+            deleteLetter();
+        } else {
+            console.log("You hit the " + letter + " key");
+            var letter = String.fromCharCode(keyCode);
+            letter = letter.toUpperCase();
+            console.log("letter " + letter);
+
+            if (scrambleString.includes(letter)) {
+                addLetter(letter);
+            } else {
+                $('.response').text("Sorry, " + letter + " is not a valid letter");
+            }
+        }
+    }
+
+    // Or on click input
+    $('.btn.btn-primary.btn-lg').click(function() {
+        var letterGuess = $(this).text();
+        addLetter(letterGuess);
+    });
+
+    $('.btn.btn-danger.btn-lg').click(function() {
+        deleteLetter();
+    });
+
+    // And adds letter to guess
+    function addLetter(letterGuess) {
+        console.log("in addLetter, letterGuess =  " + letterGuess);
+        wordGuess += letterGuess;
+        //console.log("wordGuess = " + wordGuess);
+        $('h3.word-guessed').text(wordGuess);
+    }
+
+    // Or deletes letter
+    function deleteLetter() {
+        console.log("in deleteLetter");
+        wordGuess = wordGuess.slice(0, -1);
+        $('h3.word-guessed').text(wordGuess);
+    }
+
+    $('.btn.btn-success.btn-lg').click(function() {
+        submitWord();
+    });
+
+    function submitWord() {
+        console.log("in SubmitWord");
+        console.log("wordGuess = " + wordGuess);
+
+        if (wordsGuessed.includes(wordGuess) === true) {
+            inputResponse = "Already entered";
+        } else if (acceptableList.indexOf(wordGuess) >= 0) {
+            inputResponse = "Nice, " + wordGuess + " is a valid word!";
+            wordsGuessed.push(wordGuess);
+            wordsFound += 1;
+
+            index = acceptableList.indexOf(wordGuess);
+
+            // var new_li = $('<li class="list-group-item"></li>');
+            // new_li.text(wordGuess);
+            // new_li.appendTo('.list-group');
+
+            $("li").eq(index).text(wordGuess);
+
+        } else {
+            inputResponse = "Not in our dictionary, sorry";
+        }
+
+        //  console.log("inputResponse = " + inputResponse);
+        console.log("wordsGuessed = " + wordsGuessed);
+
+        wordGuess = "";
+        $('h3.word-guessed').text(wordGuess);
+        $('.response').text(inputResponse);
+        $('.guessed').text(wordsFound);
+
+    }
+
+</script>
+
+{% endblock %}
